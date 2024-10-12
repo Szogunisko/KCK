@@ -1,9 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 import csv
-from matplotlib.lines import Line2D
-from matplotlib.legend_handler import HandlerLine2D
 
 #Ustawienei czcionki
 plt.rc('font', family='serif', serif='Times New Roman')
