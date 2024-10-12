@@ -1,16 +1,18 @@
-#!/usr/bin/env python
-
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import csv
 
 # Dane dla 1-Evol-RS
+
 with open('results/rsel.csv', 'r') as f:
     reader = csv.reader(f)
     data = list(reader)
 data_array = np.array(data)
 data_array = np.array(data_array[1:], dtype=float)
-data_y = np.mean(data_array[:, 2:], axis=1) 
+data_y = np.mean(data_array[:, 2:], axis=1)
+x11 = data_array[:,1]
+x12= data_array[:,0]
 y1 = data_y
 
 # Dane dla 1-Coev_RS
@@ -19,9 +21,10 @@ with open('results/cel-rs.csv', 'r') as f:
     data = list(reader)
 data_array = np.array(data)
 data_array = np.array(data_array[1:], dtype=float)
-data_y = np.mean(data_array[:, 2:], axis=1) 
+data_y = np.mean(data_array[:, 2:], axis=1)
+x21 = data_array[:,1]
+x22= data_array[:,0]
 y2 = data_y
-
 # Dane dla 2-Coev_RS
 with open('results/2cel-rs.csv', 'r') as f:
     reader = csv.reader(f)
@@ -29,53 +32,44 @@ with open('results/2cel-rs.csv', 'r') as f:
 data_array = np.array(data)
 data_array = np.array(data_array[1:], dtype=float)
 data_y = np.mean(data_array[:, 2:], axis=1) 
+x31 = data_array[:,1]
+x32= data_array[:,0]
 y3 = data_y
-
 # Dane dla 1-Coev
 with open('results/cel.csv', 'r') as f:
     reader = csv.reader(f)
     data = list(reader)
 data_array = np.array(data)
 data_array = np.array(data_array[1:], dtype=float)
-data_y = np.mean(data_array[:, 2:], axis=1) 
+data_y = np.mean(data_array[:, 2:], axis=1)
+x41 = data_array[:,1]
+x42= data_array[:,0]
 y4 = data_y
-
 # Dane dla 2-Coev
 with open('results/2cel.csv', 'r') as f:
     reader = csv.reader(f)
     data = list(reader)
 data_array = np.array(data)
 data_array = np.array(data_array[1:], dtype=float)
-data_y = np.mean(data_array[:, 2:], axis=1) 
+data_y = np.mean(data_array[:, 2:], axis=1)
+x51 = data_array[:,1]
+x52= data_array[:,0]
 y5 = data_y # Przykładowe dane dla 1-Evol-RS
 
-# X obojętnie bo wszedzie sa te same 0-500tys
-x1 = data_array[:,1]
-x2= data_array[:,0]
-x_dolna = x1  # Rozegrane gry
-
-
-
 # Tworzenie wykresu
-fig, ax1 = plt.subplots()
-# Wykres dla 1-Evol-RS
-ax1.plot(x_dolna, y1, 'b-o', label='1-Evol-RS', markersize=5)
-# Wykres dla 1-Coev-RS
-ax1.plot(x_dolna, y2, 'g-v', label='1-Coev-RS', markersize=5)
-# Wykres dla 2-Coev-RS
-ax1.plot(x_dolna, y3, 'r-D', label='2-Coev-RS', markersize=5)
-# Wykres dla 1-Coev
-ax1.plot(x_dolna, y4, 'k-s', label='1-Coev', markersize=5)
-# Wykres dla 2-Coev
-ax1.plot(x_dolna, y5, 'm-d', label='2-Coev', markersize=5)
 
-# Oś X dolna
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.7, 5))  # 1 wiersz, 2 kolumny
+ax1.plot(x11, y1, label='1-Evol-RS', color='blue', marker='o', markevery=25)
+ax1.plot(x21, y2, label='1-Coev-RS', color='green', marker='v', markevery=25)
+ax1.plot(x31, y3, label='2-Coev-RS', color='red', marker='D', markevery=25)
+ax1.plot(x41, y4, label='1-Coev', color='black', marker='s', markevery=25)
+ax1.plot(x51, y5, label='2-Coev', color='magenta', marker='d', markevery=25)
 ax1.set_xlabel('Rozegranych gier')
 ax1.set_ylabel('Odsetek wygranych gier')
+ax1.grid(linestyle = '--')
+ax1.legend(loc='lower right')
 
-# Siatka
-ax1.grid(True)
 
-# Legenda
-ax1.legend(loc='best')
+
+plt.savefig('myplot.pdf')
 plt.show()
