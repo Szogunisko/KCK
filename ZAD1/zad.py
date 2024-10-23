@@ -5,46 +5,23 @@ import csv
 #Ustawienei czcionki
 plt.rc('font', family='serif', serif='Times New Roman')
 
-# Dane dla 1-Evol_RS
-with open('results/rsel.csv', 'r') as f:
-    reader = csv.reader(f)
-    data = list(reader)
-data_rsel = np.array(data)
-data_rsel = np.array(data_rsel[1:], dtype=float)
-x1 = data_rsel[:,1]
-y1 = np.mean(data_rsel[:, 2:], axis=1)
-# Dane dla 1-Coev_RS
-with open('results/cel-rs.csv', 'r') as f:
-    reader = csv.reader(f)
-    data = list(reader)
-data_cel_rs = np.array(data)
-data_cel_rs = np.array(data_cel_rs[1:], dtype=float)
-x2 = data_cel_rs[:,1]
-y2 = np.mean(data_cel_rs[:, 2:], axis=1)
-# Dane dla 2-Coev_RS
-with open('results/2cel-rs.csv', 'r') as f:
-    reader = csv.reader(f)
-    data = list(reader)
-data_2cel_rs = np.array(data)
-data_2cel_rs = np.array(data_2cel_rs[1:], dtype=float)
-x3 = data_2cel_rs[:,1]
-y3 = np.mean(data_2cel_rs[:, 2:], axis=1) 
-# Dane dla 1-Coev
-with open('results/cel.csv', 'r') as f:
-    reader = csv.reader(f)
-    data = list(reader)
-data_cel = np.array(data)
-data_cel = np.array(data_cel[1:], dtype=float)
-x4 = data_cel[:,1]
-y4 = np.mean(data_cel[:, 2:], axis=1)
-# Dane dla 2-Coev
-with open('results/2cel.csv', 'r') as f:
-    reader = csv.reader(f)
-    data = list(reader)
-data_2cel = np.array(data)
-data_2cel = np.array(data_2cel[1:], dtype=float)
-x5 = data_2cel[:,1]
-y5 = np.mean(data_2cel[:, 2:], axis=1)
+#funkcja do wczytywania danych z plików csv
+def read_csv(filename):
+    with open(filename, 'r') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+    data = np.array(data)
+    data = np.array(data[1:], dtype=float)
+    x = data[:,1]
+    y = np.mean(data[:, 2:], axis=1)
+    return x, y, data
+
+# Wczytanie danych z plików csv
+x1, y1, data_rsel = read_csv('results/rsel.csv') # Dane dla 1-Evol_RS
+x2, y2, data_cel_rs = read_csv('results/cel-rs.csv') # Dane dla 1-Coev_RS
+x3, y3, data_2cel_rs = read_csv('results/2cel-rs.csv') # Dane dla 2-Coev_RS
+x4, y4 , data_cel= read_csv('results/cel.csv') # Dane dla 1-Coev
+x5, y5, data_2cel = read_csv('results/2cel.csv') # Dane dla 2-Coev
 
 # Stworzenie pola z dwoma wykresami: jeden wiersz, dwie kolumny, szerokosc i wysokosc w calach
 fig, (ax1, box1) = plt.subplots(1, 2, figsize=(6.7, 5))
@@ -88,7 +65,7 @@ boxplot_data = [
 # Ustawienia wykresu pudełkowego
 box1.boxplot(boxplot_data, showmeans=True,patch_artist=True,
             notch=True, 
-            showfliers=False,
+            showfliers=True,
             boxprops=dict(linewidth=1, edgecolor='blue',facecolor='none', color='blue', zorder=-1),
             whiskerprops=dict(linewidth=1, color='blue', linestyle='--', dashes=(5,6)),
             medianprops=dict(color='red', zorder=7),
