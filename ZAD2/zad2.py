@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, hsv_to_rgb, rgb_to_hsv
 
 # Tworzenie niestandardowego gradientu
+# Zielony -> Żółty -> Czerwony
 colors = [(0, (0, 1, 0)), (0.5, (1, 1, 0)), (1, (1, 0, 0))]
+
 custom_cmap = LinearSegmentedColormap.from_list("CustomGradient", colors)
 
 # Wczytaj dane z pliku
