@@ -1,6 +1,9 @@
-from skimage import io, color
+from skimage import io, color, img_as_float
 from matplotlib import pyplot as plt
 import numpy as np
+from skimage.filters.edges import convolve
+from scipy.signal import convolve2d
+import array
 
 # Define the thresholding function
 def thresh(image, t):
@@ -27,9 +30,24 @@ for i, nr in enumerate(range(start_nr, end_nr, 1)):
 
     # Threshold the image
     image = thresh(image, 128)
+    
+    cam = img_as_float(image)
+    Kh = np.array([[ 1, 2, 1],
+                [ 0, 0, 0],
+                [-1,-2,-1]]) 
+    Kh = Kh / 4
 
+    Kv = np.array([[ 1, 0,-1],
+                [ 2, 0,-2],
+                [ 1, 0,-1]])
+    Kv = Kv / 4                    
+
+    hor = np.abs(convolve2d(cam, Kh, mode="same"))
+    ver = np.abs(convolve2d(cam, Kv, mode="same"))
+    res = (hor+ver)/2
+    
     # Display the image
-    axes[i // width, i % width].imshow(image, cmap='gray')
+    axes[i // width, i % width].imshow(res, cmap='gray')
 plt.show()
 # # wczytaj plik
 # filename = "samolot08.jpg"
