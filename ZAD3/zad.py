@@ -1,69 +1,89 @@
-from skimage import io, filters, data, color, measure, exposure
+from skimage import io, color, measure, morphology
 from matplotlib import pyplot as plt
 import numpy as np
+from skimage.color import rgb2gray
+from skimage.filters.edges import convolve
+from skimage import img_as_ubyte
+from skimage.segmentation import find_boundaries
 
-# Define the thresholding function
-def thresh(image, t):
-    #convert to greyscale
-    image = color.rgb2gray(image) * 255  # Convert to grayscale and scale to [0, 255]
+# Funkcja progowania, zamknięcia i wykrywania krawędzi w pionie i poziomie
+def thresh_with_closing_and_edge_detection(image, t):
+    # Konwersja do skali szarości
+    image = rgb2gray(image) * 255
     image = image.astype(np.uint8)
-    # Create a binary image: pixels > t become 0 (black), <= t become 255 (white)
+    
+    # Binaryzacja
     binary = np.where(image > t, 0, 255).astype(np.uint8)
-    return binary
+    
+    # Operacja zamknięcia
+    selem = morphology.disk(5)
+    closed_image = morphology.closing(binary, selem)
+    
+    # Filtr Sobela dla krawędzi pionowych i poziomych
+    sobel_x = np.array([[-1, 0, 1],
+                        [-2, 0, 2],
+                        [-1, 0, 1]])
+    
+    sobel_y = np.array([[1, 2, 1],
+                        [0, 0, 0],
+                        [-1, -2, -1]])
+    
+    # Konwolucja w kierunku poziomym i pionowym
+    edges_x = convolve(closed_image, sobel_x)
+    edges_y = convolve(closed_image, sobel_y)
+    
+    # Łączenie krawędzi
+    edges = np.sqrt(edges_x**2 + edges_y**2)
+    edges = (edges - edges.min()) / (edges.max() - edges.min()) * 255
+    edges = edges.astype(np.uint8)
+    
+    # Etykietowanie samolotów
+    labeled_image = measure.label(edges > 0, connectivity=2)
+    
+    # Znajdowanie konturów każdego samolotu
+    boundaries = find_boundaries(labeled_image, mode='outer')
+    
+    return boundaries, labeled_image
 
-def findEdges1(image):
-    intensityP = 1
-    intensityK = 10
-    pp, pk = np.percentile(image, (intensityP, intensityK))
-    image = exposure.rescale_intensity(image, in_range=(pp, pk))
-    image = color.rgb2hsv(image)
-    blackWhite = np.zeros([len(image), len(image[0])])
-    for i in range(len(image)):
-        for j in range(len(image[i])):
-            blackWhite[i][j] = 1 - image[i][j][2]
-            image[i][j] = [0, 0, 0]
-    contours = measure.find_contours(blackWhite, 0.3)
-    return image, contours
+# Funkcja do generowania losowych kolorów dla każdego obiektu
+def apply_random_colors(boundaries, labeled_image):
+    # Przygotowanie pustego obrazu RGB
+    color_image = np.zeros((*boundaries.shape, 3), dtype=np.uint8)
+    
+    # Przypisywanie losowych kolorów każdemu obiektowi
+    for label in np.unique(labeled_image):
+        if label == 0:
+            continue  # pomiń tło
+        mask = labeled_image == label
+        color = np.random.randint(0, 255, size=3)  # losowy kolor RGB
+        color_image[mask] = color
+    
+    return color_image
 
-def drawPlotsBlack(CurrentImage, ax):
-    frame = ax  # Używamy dostarczonej osi (subplotu)
-    frame.set_facecolor("black")  # Czarne tło
-    frame.axis('off')  # Ukrycie osi
-    image, contours = findEdges1(CurrentImage)  # Znajdywanie krawędzi
-    for n, contour in enumerate(contours):
-        frame.plot(contour[:, 1], contour[:, 0], linewidth=0.8, color="w")  # Rysowanie konturu na obrazie
-    frame.imshow(image)  # Wyświetlenie obrazu
+# Parametry wyświetlania
+height = 4
+width = 5
+fig, axes = plt.subplots(height, width, figsize=(15, 10))
 
-height = 2
-width = 4
-fig, axes = plt.subplots(height, width, figsize=(10, 5))
-axes = axes.ravel()  # Spłaszczenie osi do jednej listy, aby można było indeksować je jednym indeksem
-
-start_nr = 5
+start_nr = 1
 end_nr = start_nr + height * width
 for i, nr in enumerate(range(start_nr, end_nr, 1)):
-    # Load the image
+    # Wczytaj obraz
     filename = "samolot"
     if nr < 10:
         filename += "0"
     filename += str(nr) + ".jpg"
     image = io.imread("./Lab4_images/" + filename)
+    
+    # Przetwarzanie z progowaniem, zamknięciem i wykrywaniem krawędzi
+    boundaries, labeled_image = thresh_with_closing_and_edge_detection(image, 120)
+    
+    # Zastosuj losowe kolory do każdego obiektu
+    color_image = apply_random_colors(boundaries, labeled_image)
+    
+    # Wyświetlenie obrazu
+    axes[i // width, i % width].imshow(color_image)
+    axes[i // width, i % width].axis('off')
 
-    # Threshold the image
-    drawPlotsBlack(image, axes[i])  # Używamy konkretnej osi
-    # Display the image     
+plt.tight_layout()
 plt.show()
-
-
-# # wczytaj plik
-# filename = "samolot08.jpg"
-# image = io.imread("./Lab4_images/" + filename)
-
-# # threshold image - powyżej 128 czarny, poniżej biały
-# image = thresh(image, 128)
-
-
-
-# # Display original image
-# io.imshow(image)
-# plt.show()
