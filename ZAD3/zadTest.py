@@ -6,6 +6,8 @@ from skimage.color import rgb2gray
 from skimage.filters.edges import convolve
 from skimage import img_as_ubyte
 from skimage.segmentation import find_boundaries
+from skimage.draw import polygon_perimeter, disk
+
 
 # Funkcja zapisująca zestaw figurek do PDF
 def save_figures_to_pdf(figures, filenames):
@@ -23,7 +25,7 @@ def ContrastUp(image):
     blue = image[:, :, 2]
     
     brightness = (red.mean() + green.mean() + blue.mean()) / 3
-    if brightness > 120:
+    if brightness > 105:
         lowerBound = 1
         upperBound = 25
     else:
@@ -86,6 +88,7 @@ def ConnectEdges_and_Random_color(edges):
     edges = edges.astype(np.uint8)
     # Etykietowanie samolotów
     labeled_image = measure.label(edges > 0, connectivity=2)
+    regions = measure.regionprops(labeled_image)
     # Znajdowanie konturów każdego samolotu
     boundaries = find_boundaries(labeled_image, mode='outer')
     # Przygotowanie pustego obrazu RGB
@@ -98,7 +101,7 @@ def ConnectEdges_and_Random_color(edges):
         mask = labeled_image == label
         color = np.random.randint(100, 256, size=3)
         color_image[mask] = color
-    return color_image
+    return color_image, regions
 
 def overlay_random_colors_on_image(image_colored, random_colored_image, alpha=0.5):
     # Upewnienie się, że obrazy są w formacie RGB
@@ -116,6 +119,39 @@ def overlay_random_colors_on_image(image_colored, random_colored_image, alpha=0.
     blended_image = blended_image.astype(np.uint8)  # Konwersja do 8-bitowego obrazu
     
     return blended_image
+
+# Funkcja do rysowania konturów na obrazie
+def draw_contours_on_image(image, contours, thickness=3):
+    # Upewniamy się, że obraz jest w formacie RGB
+    if len(image.shape) < 3 or image.shape[2] != 3:
+        image = color.gray2rgb(image)
+    
+    # Tworzymy kopię obrazu
+    image_with_contours = image.copy()
+    for contour in contours:
+        # Iteracja przez wszystkie punkty konturu
+        for point in contour:
+            rr, cc = disk((point[0], point[1]), radius=thickness, shape=image.shape[:2])
+            image_with_contours[rr, cc] = [255, 0, 0]  # Czerwony kolor konturów
+    
+    return image_with_contours
+def draw_centroids_on_image(image, regions, color=(255, 255, 255)):
+    # Upewnij się, że obraz jest w formacie RGB
+    if len(image.shape) < 3 or image.shape[2] != 3:
+        image = color.gray2rgb(image)
+    
+    # Kopia obrazu
+    image_with_centroids = image.copy()
+    
+    # Iteracja przez regiony i rysowanie centroidów
+    for region in regions:
+        cy, cx = region.centroid  # Współrzędne centroidu
+        rr, cc = disk((cy, cx), radius=5, shape=image.shape[:2])
+        image_with_centroids[rr, cc] = color  # Zielony kolor
+    
+    return image_with_centroids
+
+
 
 
 # Parametry wyświetlania
@@ -144,14 +180,20 @@ for i, nr in enumerate(range(start_nr, end_nr, 1)):
 
     image_contrast = ContrastUp(image)
     bw, binary= thresh_and_median_filter(image_contrast)
-    image_closed = closingFunction(binary, disk_size=31)
-    image_edges = SobelFilter(image_closed)
-    image_colored = ConnectEdges_and_Random_color(image_edges)
+    image_closed = closingFunction(binary, disk_size=19)
+    image_closed = morphology.dilation(image_closed)
+    contours = measure.find_contours(image_closed, 0.5)
+    #image_edges = SobelFilter(image_closed)
+    image_edges = filters.sobel(image_closed)
+    image_colored, regions = ConnectEdges_and_Random_color(image_edges)
     image_output = overlay_random_colors_on_image(image, image_colored)
+    image_with_contours = draw_contours_on_image(image, contours)
+    image_with_contours = draw_centroids_on_image(image_with_contours, regions)
+    image_output = draw_centroids_on_image(image_output, regions)
     
     # Wyświetlenie obrazu
     ax0 = axes0[i // width, i % width]
-    ax0.imshow(image)
+    ax0.imshow(image_with_contours)
     ax0.axis('off')
 
     ax1 = axes1[i // width, i % width]
