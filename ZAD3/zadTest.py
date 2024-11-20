@@ -7,15 +7,6 @@ from skimage.filters.edges import convolve
 from skimage import img_as_ubyte
 from skimage.segmentation import find_boundaries
 
-
-
-
-
-
-
-
-
-
 # Funkcja zapisująca zestaw figurek do PDF
 def save_figures_to_pdf(figures, filenames):
     for fig, filename in zip(figures, filenames):
@@ -24,39 +15,53 @@ def save_figures_to_pdf(figures, filenames):
             plt.close(fig)  # Opcjonalne zamknięcie figury po zapisaniu
 
 
+#Podwyższenie kontrastu
+def ContrastUp(image):
     
-
-
-def KonstastUp(image, lowerB,upperB):
-    lB, uB = np.percentile(image, (lowerB, upperB))
-    image = exposure.rescale_intensity(image, in_range=(lB, uB))
+    red = image[:, :, 0]
+    green = image[:, :, 1]
+    blue = image[:, :, 2]
+    
+    brightness = (red.mean() + green.mean() + blue.mean()) / 3
+    if brightness > 120:
+        lowerBound = 1
+        upperBound = 25
+    else:
+        lowerBound = 1
+        upperBound = 50
+    lb, ub = np.percentile(image, (lowerBound, upperBound))
+    image = exposure.rescale_intensity(image, in_range=(lb, ub))
+    
     return image
 
 # Funkcja progowania, zamknięcia i filtracji medianowej
-def thresh_and_median_filter(image, t, disk_size=3):
+def thresh_and_median_filter(image):
     # Konwersja do skali szarości
-    image = rgb2gray(image) * 255
-    image = image.astype(np.uint8)
-    image_opened = openingFunction(image, 5)
-    image_filtered = filters.median(image_opened, morphology.disk(disk_size))
-    binary = np.where(image_filtered > t, 0, 255).astype(np.uint8)
-    # Binaryzacja po filtracji medianowej
-    return binary
+    hsv_image = color.rgb2hsv(image)
 
+    black_white = 1 - hsv_image[:, :, 2]
+
+    # Progowanie obrazu, aby wyodrębnić obszary samolotów
+    threshold_value = filters.threshold_otsu(black_white)
+    thresholded_image = black_white > threshold_value
+    return black_white, thresholded_image
+
+
+#Funkcja otwarcia
 def openingFunction(image,disk_size):
     # Operacja zamknięcia
     selem = morphology.disk(disk_size)
     opened_image = morphology.opening(image, selem)    
     return opened_image
 
-
-
+#Funkcja zamknięcia
 def closingFunction(image, disk_size):
    # Operacja zamknięcia
     selem = morphology.disk(disk_size)
     closed_image = morphology.closing(image, selem)    
     return closed_image
 
+#Filtr Sobla
 def SobelFilter(image): 
     # Filtr Sobela dla krawędzi pionowych i poziomych
     sobel_x = np.array([[-1, 0, 1],
@@ -74,8 +79,10 @@ def SobelFilter(image):
     return edges
 
 def ConnectEdges_and_Random_color(edges):
-    # Łączenie krawędzi
-    edges = (edges - edges.min()) / (edges.max() - edges.min()) * 255
+    if edges.max() - edges.min() > 0:
+        edges = (edges - edges.min()) / (edges.max() - edges.min()) * 255
+    else:
+        edges = np.zeros_like(edges) 
     edges = edges.astype(np.uint8)
     # Etykietowanie samolotów
     labeled_image = measure.label(edges > 0, connectivity=2)
@@ -94,7 +101,6 @@ def ConnectEdges_and_Random_color(edges):
     return color_image
 
 def overlay_random_colors_on_image(image_colored, random_colored_image, alpha=0.5):
-
     # Upewnienie się, że obrazy są w formacie RGB
     if len(image_colored.shape) < 3 or image_colored.shape[2] != 3:
         image_colored = color.gray2rgb(image_colored)
@@ -112,22 +118,20 @@ def overlay_random_colors_on_image(image_colored, random_colored_image, alpha=0.
     return blended_image
 
 
-
-
-
 # Parametry wyświetlania
 height = 7
 width = 3
-
 hv = 40
 wv = 32
 dpi = 300
 # Otwórz plik PDF do zapisu
+fig0, axes0 = plt.subplots(height, width, figsize=(hv, wv), dpi=dpi)
 fig1, axes1 = plt.subplots(height, width, figsize=(hv, wv), dpi=dpi)
 fig2, axes2 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
 fig3, axes3 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
 fig4, axes4 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
 fig5, axes5 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
+fig6, axes6 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
 start_nr = 0
 end_nr = start_nr + height * width
 for i, nr in enumerate(range(start_nr, end_nr, 1)):
@@ -138,14 +142,18 @@ for i, nr in enumerate(range(start_nr, end_nr, 1)):
     filename += str(nr) + ".jpg"
     image = io.imread("./Lab4_images/" + filename)
 
-    image_contrast = KonstastUp(image,5,25)
-    binary = thresh_and_median_filter(image_contrast, 126, disk_size=3)
-    image_closed = closingFunction(binary, disk_size=21)
+    image_contrast = ContrastUp(image)
+    bw, binary= thresh_and_median_filter(image_contrast)
+    image_closed = closingFunction(binary, disk_size=31)
     image_edges = SobelFilter(image_closed)
     image_colored = ConnectEdges_and_Random_color(image_edges)
     image_output = overlay_random_colors_on_image(image, image_colored)
     
     # Wyświetlenie obrazu
+    ax0 = axes0[i // width, i % width]
+    ax0.imshow(image)
+    ax0.axis('off')
+
     ax1 = axes1[i // width, i % width]
     ax1.imshow(image_contrast)
     ax1.axis('off')
@@ -155,20 +163,23 @@ for i, nr in enumerate(range(start_nr, end_nr, 1)):
     ax2.axis('off')
 
     ax3 = axes3[i // width, i % width]
-    ax3.imshow(image_closed)
+    ax3.imshow(bw, cmap='gray')
     ax3.axis('off')
 
     ax4 = axes4[i // width, i % width]
-    ax4.imshow(image_edges)
+    ax4.imshow(image_closed, cmap='gray')
     ax4.axis('off')
 
     ax5 = axes5[i // width, i % width]
-    ax5.imshow(image_output)
+    ax5.imshow(image_edges)
     ax5.axis('off')
 
+    ax6 = axes6[i // width, i % width]
+    ax6.imshow(image_output)
+    ax6.axis('off')
 
 # Zapis figur do PDF
-figures = [fig1, fig2, fig3, fig4, fig5]
-filenames = ["fig1.pdf", "fig2.pdf", "fig3.pdf", "fig4.pdf", "fig5.pdf"]
+figures = [fig0, fig1, fig2, fig3, fig4, fig5, fig6]
+filenames = ["fig0.pdf", "fig1.pdf", "fig2.pdf", "fig3.pdf", "fig4.pdf", "fig5.pdf", "fig6.pdf"]
 
 save_figures_to_pdf(figures, filenames)
