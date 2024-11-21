@@ -25,7 +25,7 @@ def ContrastUp(image):
     blue = image[:, :, 2]
     
     brightness = (red.mean() + green.mean() + blue.mean()) / 3
-    if brightness > 105:
+    if brightness > 120:
         lowerBound = 1
         upperBound = 25
     else:
@@ -128,11 +128,17 @@ def draw_contours_on_image(image, contours, thickness=3):
     
     # Tworzymy kopię obrazu
     image_with_contours = image.copy()
-    for contour in contours:
-        # Iteracja przez wszystkie punkty konturu
+    
+    # Generujemy losowy kolor dla każdego konturu
+    random_colors = [np.random.randint(0, 256, size=3) for _ in range(len(contours))]
+    
+    # Iteracja przez kontury i ich punkty
+    for contour, color in zip(contours, random_colors):
         for point in contour:
             rr, cc = disk((point[0], point[1]), radius=thickness, shape=image.shape[:2])
-            image_with_contours[rr, cc] = [255, 0, 0]  # Czerwony kolor konturów
+            image_with_contours[rr, cc] = color  # Kolor konturu dla danego obiektu
+    
+    return image_with_contours
     
     return image_with_contours
 def draw_centroids_on_image(image, regions, color=(255, 255, 255)):
@@ -180,7 +186,7 @@ for i, nr in enumerate(range(start_nr, end_nr, 1)):
 
     image_contrast = ContrastUp(image)
     bw, binary= thresh_and_median_filter(image_contrast)
-    image_closed = closingFunction(binary, disk_size=19)
+    image_closed = closingFunction(binary, disk_size=21)
     image_closed = morphology.dilation(image_closed)
     contours = measure.find_contours(image_closed, 0.5)
     #image_edges = SobelFilter(image_closed)
