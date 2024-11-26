@@ -25,7 +25,7 @@ def ContrastUp(image):
     blue = image[:, :, 2]
     
     brightness = (red.mean() + green.mean() + blue.mean()) / 3
-    if brightness > 120:
+    if brightness > 128:
         lowerBound = 1
         upperBound = 25
     else:
@@ -36,8 +36,8 @@ def ContrastUp(image):
     
     return image
 
-# Funkcja progowania, zamknięcia i filtracji medianowej
-def thresh_and_median_filter(image):
+# Funkcja progowania, zamknięcia
+def thresh_with_otsu(image):
     # Konwersja do skali szarości
     hsv_image = color.rgb2hsv(image)
 
@@ -63,23 +63,6 @@ def closingFunction(image, disk_size):
     closed_image = morphology.closing(image, selem)    
     return closed_image
 
-#Filtr Sobla
-def SobelFilter(image): 
-    # Filtr Sobela dla krawędzi pionowych i poziomych
-    sobel_x = np.array([[-1, 0, 1],
-                        [-2, 0, 2],
-                        [-1, 0, 1]])
-    
-    sobel_y = np.array([[1, 2, 1],
-                        [0, 0, 0],
-                        [-1, -2, -1]])
-    
-    # Konwolucja w kierunku poziomym i pionowym
-    edges_x = convolve(image, sobel_x)
-    edges_y = convolve(image, sobel_y)
-    edges = np.sqrt(edges_x**2 + edges_y**2)
-    return edges
-
 def ConnectEdges_and_Random_color(edges):
     if edges.max() - edges.min() > 0:
         edges = (edges - edges.min()) / (edges.max() - edges.min()) * 255
@@ -89,6 +72,7 @@ def ConnectEdges_and_Random_color(edges):
     # Etykietowanie samolotów
     labeled_image = measure.label(edges > 0, connectivity=2)
     regions = measure.regionprops(labeled_image)
+    
     # Znajdowanie konturów każdego samolotu
     boundaries = find_boundaries(labeled_image, mode='outer')
     # Przygotowanie pustego obrazu RGB
@@ -139,8 +123,7 @@ def draw_contours_on_image(image, contours, thickness=3):
             image_with_contours[rr, cc] = color  # Kolor konturu dla danego obiektu
     
     return image_with_contours
-    
-    return image_with_contours
+
 def draw_centroids_on_image(image, regions, color=(255, 255, 255)):
     # Upewnij się, że obraz jest w formacie RGB
     if len(image.shape) < 3 or image.shape[2] != 3:
@@ -151,9 +134,9 @@ def draw_centroids_on_image(image, regions, color=(255, 255, 255)):
     
     # Iteracja przez regiony i rysowanie centroidów
     for region in regions:
-        cy, cx = region.centroid  # Współrzędne centroidu
+        cy, cx = region.centroid  # Współrzędne centroidu pobierane z regionu
         rr, cc = disk((cy, cx), radius=5, shape=image.shape[:2])
-        image_with_centroids[rr, cc] = color  # Zielony kolor
+        image_with_centroids[rr, cc] = color  # Biały kolor
     
     return image_with_centroids
 
@@ -168,12 +151,12 @@ wv = 32
 dpi = 300
 # Otwórz plik PDF do zapisu
 fig0, axes0 = plt.subplots(height, width, figsize=(hv, wv), dpi=dpi)
-fig1, axes1 = plt.subplots(height, width, figsize=(hv, wv), dpi=dpi)
-fig2, axes2 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
-fig3, axes3 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
-fig4, axes4 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
-fig5, axes5 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
-fig6, axes6 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
+# fig1, axes1 = plt.subplots(height, width, figsize=(hv, wv), dpi=dpi)
+# fig2, axes2 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
+# fig3, axes3 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
+# fig4, axes4 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
+# fig5, axes5 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
+# fig6, axes6 = plt.subplots(height, width, figsize=(hv, wv),dpi=dpi)
 start_nr = 0
 end_nr = start_nr + height * width
 for i, nr in enumerate(range(start_nr, end_nr, 1)):
@@ -185,15 +168,16 @@ for i, nr in enumerate(range(start_nr, end_nr, 1)):
     image = io.imread("./Lab4_images/" + filename)
 
     image_contrast = ContrastUp(image)
-    bw, binary= thresh_and_median_filter(image_contrast)
-    image_closed = closingFunction(binary, disk_size=21)
+    bw, binary= thresh_with_otsu(image_contrast)
+    image_closed = closingFunction(binary, disk_size=7)
     image_closed = morphology.dilation(image_closed)
     contours = measure.find_contours(image_closed, 0.5)
-    #image_edges = SobelFilter(image_closed)
     image_edges = filters.sobel(image_closed)
+    
     image_colored, regions = ConnectEdges_and_Random_color(image_edges)
     image_output = overlay_random_colors_on_image(image, image_colored)
     image_with_contours = draw_contours_on_image(image, contours)
+    
     image_with_contours = draw_centroids_on_image(image_with_contours, regions)
     image_output = draw_centroids_on_image(image_output, regions)
     
@@ -202,32 +186,36 @@ for i, nr in enumerate(range(start_nr, end_nr, 1)):
     ax0.imshow(image_with_contours)
     ax0.axis('off')
 
-    ax1 = axes1[i // width, i % width]
-    ax1.imshow(image_contrast)
-    ax1.axis('off')
+    # ax1 = axes1[i // width, i % width]
+    # ax1.imshow(image_contrast)
+    # ax1.axis('off')
 
-    ax2 = axes2[i // width, i % width]
-    ax2.imshow(binary, cmap='gray')
-    ax2.axis('off')
+    # ax2 = axes2[i // width, i % width]
+    # ax2.imshow(binary, cmap='gray')
+    # ax2.axis('off')
 
-    ax3 = axes3[i // width, i % width]
-    ax3.imshow(bw, cmap='gray')
-    ax3.axis('off')
+    # ax3 = axes3[i // width, i % width]
+    # ax3.imshow(bw, cmap='gray')
+    # ax3.axis('off')
 
-    ax4 = axes4[i // width, i % width]
-    ax4.imshow(image_closed, cmap='gray')
-    ax4.axis('off')
+    # ax4 = axes4[i // width, i % width]
+    # ax4.imshow(image_closed, cmap='gray')
+    # ax4.axis('off')
 
-    ax5 = axes5[i // width, i % width]
-    ax5.imshow(image_edges)
-    ax5.axis('off')
+    # ax5 = axes5[i // width, i % width]
+    # ax5.imshow(image_edges)
+    # ax5.axis('off')
 
-    ax6 = axes6[i // width, i % width]
-    ax6.imshow(image_output)
-    ax6.axis('off')
+    # ax6 = axes6[i // width, i % width]
+    # ax6.imshow(image_output)
+    # ax6.axis('off')
 
 # Zapis figur do PDF
-figures = [fig0, fig1, fig2, fig3, fig4, fig5, fig6]
-filenames = ["fig0.pdf", "fig1.pdf", "fig2.pdf", "fig3.pdf", "fig4.pdf", "fig5.pdf", "fig6.pdf"]
+# zakomentowane figury, wcześniej wyświetlaliśmy żeby zobaczyć 
+# jak każde zdjęcie się zmienia na poszczególnch etapach
+# figures = [fig0, fig1, fig2, fig3, fig4, fig5, fig6]
+# filenames = ["fig0.pdf", "fig1.pdf", "fig2.pdf", "fig3.pdf", "fig4.pdf", "fig5.pdf", "fig6.pdf"]
+figures = [fig0]
+filenames = ["fig0.pdf"]
 
 save_figures_to_pdf(figures, filenames)
